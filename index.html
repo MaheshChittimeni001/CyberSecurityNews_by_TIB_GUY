@@ -65,11 +65,13 @@
                         <p class="section-kicker">Filters</p>
                         <h2>Refine the feed</h2>
                     </div>
-<div class="search-box">
-    <i class="bi bi-search"></i>
-    <input type="text" id="searchInput" placeholder="Search news...">
-</div>
-
+    <div class="search-box position-relative">
+        <i class="bi bi-search"></i>
+        <input type="text" id="searchInput" placeholder="Search news...">
+        <button id="clearSearch" class="clear-btn d-none" title="Clear search">
+            <i class="bi bi-x"></i>
+        </button>
+    </div>
 
                     <div class="row g-3">
                         <div class="col-12">
@@ -80,12 +82,15 @@
                             <label for="endDate" class="form-label">To</label>
                             <input type="date" id="endDate" class="form-control custom-field">
                         </div>
+                        <div class="col-12">
+                            <div id="filterStatus" class="filter-status d-none mb-3 p-2"></div>
+                        </div>
                         <div class="col-12 d-grid gap-2 d-md-flex">
-                            <button class="btn btn-primary action-btn flex-fill" onclick="filterNews()">
+                            <button class="btn btn-primary action-btn flex-fill" onclick="applyFilters()">
                                 <i class="bi bi-funnel-fill"></i>
-                                Filter News
+                                Apply Filter
                             </button>
-                            <button class="btn btn-outline-light soft-btn flex-fill" onclick="resetFilter()">
+                            <button class="btn btn-outline-light soft-btn flex-fill" onclick="resetFilters()">
                                 <i class="bi bi-arrow-counterclockwise"></i>
                                 Reset
                             </button>
@@ -129,10 +134,21 @@
                     <p class="section-kicker mb-2">Live feed</p>
                     <h2 class="mb-0">Latest cybersecurity coverage</h2>
                 </div>
+            <div class="d-flex align-items-center gap-3 flex-wrap">
                 <div id="loading" class="loading-chip">
                     <span class="loader-dot"></span>
                     Fetching latest threat intelligence...
                 </div>
+                <button id="refreshBtn" class="btn btn-outline-accent soft-btn">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            </div>
+
+            <div id="filterBadge" class="mb-3 d-none">
+                <span class="badge bg-accent text-dark px-3 py-2 fs-6">
+                    <i class="bi bi-funnel"></i> <span id="resultCount">20</span> results
+                </span>
             </div>
 
             <div id="emptyState" class="empty-state d-none">
