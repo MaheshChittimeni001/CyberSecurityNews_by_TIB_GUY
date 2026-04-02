@@ -17,6 +17,10 @@ function loadSources() {
 
 const RSS_TO_JSON = "https://api.rss2json.com/v1/api.json?rss_url=";
 
+const today = new Date();
+today.setHours(23, 59, 59, 999);
+const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
 const newsList = document.getElementById("news");
 const loading = document.getElementById("loading");
 const emptyState = document.getElementById("emptyState");
@@ -151,28 +155,62 @@ function displayNews(newsArray) {
     });
 }
 
-function filterNews() {
-    const startValue = document.getElementById("startDate").value;
-    const endValue = document.getElementById("endDate").value;
-
-    if (!startValue || !endValue) {
-        alert("Please select both dates.");
-        return;
+function validateDateRange(startValue, endValue) {
+    const startDate = new Date(startValue + 'T00:00:00');
+    const endDate = new Date(endValue + 'T23:59:59.999');
+    
+    // Ensure no future dates
+    if (endDate > today) {
+        endDate.setTime(today.getTime());
+        document.getElementById('endDate').value = today.toISOString().split('T')[0];
     }
-
-    const startDate = new Date(startValue);
-    const endDate = new Date(endValue);
-    endDate.setHours(23, 59, 59, 999);
-
-    const filtered = allNews.filter((article) => article.date >= startDate && article.date <= endDate);
-    displayNews(filtered);
+    
+    if (startDate > endDate) {
+        alert('Start date cannot be after end date.');
+        return null;
+    }
+    
+    return { start: startDate, end: endDate };
 }
 
-function resetFilter() {
-    document.getElementById("startDate").value = "";
-    document.getElementById("endDate").value = "";
-    displayNews(allNews.slice(0, 20));
-    updateStats(allNews);
+function getSearchTerm() {
+    return document.getElementById('searchInput').value.trim().toLowerCase();
+}
+
+function applyFilters() {
+    const searchTerm = getSearchTerm();
+    const startValue = document.getElementById('startDate').value;
+    const endValue = document.getElementById('endDate').value;
+    
+    let filteredNews = [...allNews];
+    
+    // Apply date filter
+    if (startValue && endValue) {
+        const dateRange = validateDateRange(startValue, endValue);
+        if (!dateRange) return;
+        filteredNews = filteredNews.filter(article => 
+            article.date >= dateRange.start && article.date <= dateRange.end
+        );
+    }
+    
+    // Apply search filter
+    if (searchTerm) {
+        filteredNews = filteredNews.filter(article => 
+            article.title.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    updateFilterUI(filteredNews.length);
+    displayNews(filteredNews.slice(0, 20));
+}
+
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('startDate').value = sevenDaysAgo.toISOString().split('T')[0];
+    document.getElementById('endDate').value = today.toISOString().split('T')[0];
+    document.getElementById('clearSearch').classList.add('d-none');
+    updateFilterUI(0, true);
+    applyFilters();
 }
 
 function addNewSource() {
@@ -205,20 +243,67 @@ function addNewSource() {
 
 loadSources();
 renderSources();
+
+// Set default filter dates
+document.getElementById('startDate').value = sevenDaysAgo.toISOString().split('T')[0];
+document.getElementById('endDate').value = today.toISOString().split('T')[0];
+document.getElementById('endDate').max = today.toISOString().split('T')[0];
+document.getElementById('startDate').max = today.toISOString().split('T')[0];
+
 loadNews();
 
 document.getElementById("searchInput").addEventListener("input", function() {
-    const query = this.value.toLowerCase().trim();
-    if (!query) {
-        displayNews(allNews.slice(0, 20));
+    const query = this.value.trim();
+    const clearBtn = document.getElementById('clearSearch');
+    const searchBox = this.parentElement;
+    
+    if (query) {
+        clearBtn.classList.remove('d-none');
+        searchBox.classList.add('has-text');
+    } else {
+        clearBtn.classList.add('d-none');
+        searchBox.classList.remove('has-text');
+    }
+    
+    applyFilters();
+});
+
+document.getElementById('clearSearch').addEventListener('click', function(e) {
+    e.preventDefault();
+    document.getElementById('searchInput').value = '';
+    this.classList.add('d-none');
+    this.parentElement.classList.remove('has-text');
+    applyFilters();
+});
+
+document.getElementById('refreshBtn').addEventListener('click', function() {
+    loadNews();
+});
+
+document.getElementById('startDate').addEventListener('change', applyFilters);
+document.getElementById('endDate').addEventListener('change', applyFilters);
+
+function updateFilterUI(count, hide = false) {
+    const filterStatus = document.getElementById('filterStatus');
+    const filterBadge = document.getElementById('filterBadge');
+    const resultCount = document.getElementById('resultCount');
+    
+    if (hide) {
+        filterStatus.classList.add('d-none');
+        filterBadge.classList.add('d-none');
         return;
     }
     
-    const filtered = allNews.filter(article => 
-        article.title.toLowerCase().includes(query)
-    );
-    displayNews(filtered);
-});
+    if (count !== allNews.length || getSearchTerm() || document.getElementById('startDate').value || document.getElementById('endDate').value) {
+        resultCount.textContent = count;
+        filterStatus.classList.remove('d-none');
+        filterStatus.innerHTML = `<i class="bi bi-funnel"></i> ${count} filtered results (showing first 20)`;
+        filterBadge.classList.remove('d-none');
+    } else {
+        filterStatus.classList.add('d-none');
+        filterBadge.classList.add('d-none');
+    }
+}
 
 function normalizeUrl(url) {
     if (!url) return '';
@@ -229,5 +314,4 @@ function normalizeUrl(url) {
         .replace(/\/+$/, "")
         .replace(/\?.*$/, "");
 }
-
 
