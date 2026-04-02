@@ -4,6 +4,17 @@ let RSS_FEEDS = [
     { name: "Dark Reading", url: "https://www.darkreading.com/rss.xml" }
 ];
 
+function saveSources() {
+    localStorage.setItem('rssFeeds', JSON.stringify(RSS_FEEDS));
+}
+
+function loadSources() {
+    const saved = localStorage.getItem('rssFeeds');
+    if (saved) {
+        RSS_FEEDS = JSON.parse(saved);
+    }
+}
+
 const RSS_TO_JSON = "https://api.rss2json.com/v1/api.json?rss_url=";
 
 const newsList = document.getElementById("news");
@@ -20,14 +31,39 @@ function renderSources() {
     sourceCount.textContent = RSS_FEEDS.length;
     sourceStrip.innerHTML = "";
 
-    RSS_FEEDS.forEach((feed) => {
-        const tag = document.createElement("div");
-        tag.className = "source-tag";
-        tag.innerHTML = `
-            <i class="bi bi-rss-fill"></i>
-            <span>${feed.name}</span>
+    RSS_FEEDS.forEach((feed, index) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "source-item";
+        
+        const link = document.createElement("a");
+        link.href = feed.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.className = "source-tag-link";
+        link.innerHTML = `
+            <div class="source-tag">
+                <i class="bi bi-rss-fill"></i>
+                <span>${feed.name}</span>
+            </div>
         `;
-        sourceStrip.appendChild(tag);
+        
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "source-remove";
+        removeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+        removeBtn.onclick = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (confirm(`Remove "${feed.name}"?`)) {
+                RSS_FEEDS.splice(index, 1);
+                saveSources();
+                renderSources();
+                loadNews();
+            }
+        };
+        
+        wrapper.appendChild(link);
+        wrapper.appendChild(removeBtn);
+        sourceStrip.appendChild(wrapper);
     });
 }
 
@@ -148,13 +184,16 @@ function addNewSource() {
         return;
     }
 
-    const alreadyExists = RSS_FEEDS.some((feed) => feed.url === url);
+    const normalizedUrl = normalizeUrl(url);
+    const alreadyExists = RSS_FEEDS.some((feed) => normalizeUrl(feed.url) === normalizedUrl);
     if (alreadyExists) {
-        alert("This RSS source is already added!");
+        alert("This RSS source link already exists!");
+        document.getElementById("newSourceUrl").value = "";
         return;
     }
 
     RSS_FEEDS.push({ name, url });
+    saveSources();
 
     document.getElementById("newSourceName").value = "";
     document.getElementById("newSourceUrl").value = "";
@@ -164,51 +203,31 @@ function addNewSource() {
     loadNews();
 }
 
+loadSources();
 renderSources();
 loadNews();
 
-
-let allArticles = [];
-
-function displayNews(articles) {
-    const newsContainer = document.getElementById("news");
-    const emptyState = document.getElementById("emptyState");
-
-    newsContainer.innerHTML = "";
-    allArticles = articles;
-
-    if (articles.length === 0) {
-        emptyState.classList.remove("d-none");
+document.getElementById("searchInput").addEventListener("input", function() {
+    const query = this.value.toLowerCase().trim();
+    if (!query) {
+        displayNews(allNews.slice(0, 20));
         return;
-    } else {
-        emptyState.classList.add("d-none");
     }
-
-    articles.forEach(article => {
-        const col = document.createElement("div");
-        col.className = "col-md-6 col-lg-4";
-
-        col.innerHTML = `
-            <div class="news-card">
-                <h5>${article.title}</h5>
-                <p class="news-source">${article.source || "Unknown Source"}</p>
-                <a href="${article.link}" target="_blank">Read More</a>
-            </div>
-        `;
-
-        newsContainer.appendChild(col);
-    });
-}
-
-/* SEARCH */
-document.getElementById("searchInput").addEventListener("input", function () {
-    const value = this.value.toLowerCase();
-
-    const filtered = allArticles.filter(article =>
-        article.title.toLowerCase().includes(value)
+    
+    const filtered = allNews.filter(article => 
+        article.title.toLowerCase().includes(query)
     );
-
     displayNews(filtered);
 });
+
+function normalizeUrl(url) {
+    if (!url) return '';
+    return url
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, "")
+        .replace(/\/+$/, "")
+        .replace(/\?.*$/, "");
+}
 
 
